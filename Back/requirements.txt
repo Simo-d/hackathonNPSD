@@ -1,0 +1,11 @@
+Django
+djangorestframework
+django-cors-headers
+django-filter
+Pillow
+python-decouple
+scikit-learn
+pandas
+numpy
+requests
+python-dateutil
