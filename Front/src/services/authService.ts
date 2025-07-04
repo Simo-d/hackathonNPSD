@@ -92,19 +92,16 @@ export class AuthService {
 
     const data = await response.json();
     
-    // Store tokens
-    if (data.access) {
-      localStorage.setItem('access_token', data.access);
-    }
-    if (data.refresh) {
-      localStorage.setItem('refresh_token', data.refresh);
+    // Store token
+    if (data.token) {
+      localStorage.setItem('access_token', data.token);
     }
 
     return {
-      user: data.user ? transformBackendStudent(data.user) : null,
+      user: data.student ? transformBackendStudent(data.student) : null,
       tokens: {
-        access: data.access,
-        refresh: data.refresh
+        access: data.token,
+        refresh: data.token  // For now, using same token
       }
     };
   }
@@ -126,19 +123,16 @@ export class AuthService {
 
     const data = await response.json();
     
-    // Store tokens
-    if (data.access) {
-      localStorage.setItem('access_token', data.access);
-    }
-    if (data.refresh) {
-      localStorage.setItem('refresh_token', data.refresh);
+    // Store token
+    if (data.token) {
+      localStorage.setItem('access_token', data.token);
     }
 
     return {
-      user: data.user ? transformBackendStudent(data.user) : null,
+      user: data.student ? transformBackendStudent(data.student) : null,
       tokens: {
-        access: data.access,
-        refresh: data.refresh
+        access: data.token,
+        refresh: data.token  // For now, using same token
       }
     };
   }
@@ -149,49 +143,25 @@ export class AuthService {
     return transformBackendStudent(response);
   }
 
-  // Refresh token
+  // Refresh token (simplified for token auth)
   static async refreshToken(): Promise<AuthTokens> {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const token = localStorage.getItem('access_token');
     
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
+    if (!token) {
+      throw new Error('No token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}${API_ENDPOINTS.REFRESH}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refresh: refreshToken }),
-    });
-
-    if (!response.ok) {
-      // Refresh token is invalid, clear all tokens
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      throw new Error('Refresh token expired');
-    }
-
-    const data = await response.json();
-    
-    // Update stored tokens
-    if (data.access) {
-      localStorage.setItem('access_token', data.access);
-    }
-    if (data.refresh) {
-      localStorage.setItem('refresh_token', data.refresh);
-    }
-
+    // For simple token auth, we don't need to refresh
+    // Just return the existing token
     return {
-      access: data.access,
-      refresh: data.refresh || refreshToken
+      access: token,
+      refresh: token
     };
   }
 
   // Logout
   static logout() {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
   }
 
   // Check if user is authenticated
@@ -203,12 +173,11 @@ export class AuthService {
   // Get stored tokens
   static getTokens(): AuthTokens | null {
     const access = localStorage.getItem('access_token');
-    const refresh = localStorage.getItem('refresh_token');
     
-    if (!access || !refresh) {
+    if (!access) {
       return null;
     }
     
-    return { access, refresh };
+    return { access, refresh: access };
   }
 }

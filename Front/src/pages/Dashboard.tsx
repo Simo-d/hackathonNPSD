@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -13,9 +13,14 @@ import {
   Clock,
   AlertCircle,
   Star,
-  ArrowRight
+  ArrowRight,
+  CheckCircle,
+  Heart,
+  Lightbulb,
+  Loader
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { DashboardService, type DashboardStats, type DashboardActivity, type UpcomingItem } from '../services/dashboardService';
 
 interface StatCardProps {
   title: string;
@@ -25,6 +30,7 @@ interface StatCardProps {
   color: string;
   bgColor: string;
   trend?: 'up' | 'down' | 'neutral';
+  loading?: boolean;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ 
@@ -34,7 +40,8 @@ const StatCard: React.FC<StatCardProps> = ({
   icon: Icon, 
   color, 
   bgColor,
-  trend = 'neutral'
+  trend = 'neutral',
+  loading = false
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -57,8 +64,17 @@ const StatCard: React.FC<StatCardProps> = ({
       )}
     </div>
     <div>
-      <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
-      <p className="text-sm text-gray-600">{title}</p>
+      {loading ? (
+        <div className="flex items-center">
+          <Loader className="w-5 h-5 animate-spin mr-2" />
+          <span className="text-gray-500">Chargement...</span>
+        </div>
+      ) : (
+        <>
+          <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
+          <p className="text-sm text-gray-600">{title}</p>
+        </>
+      )}
     </div>
   </motion.div>
 );
@@ -111,7 +127,7 @@ interface UpcomingItemProps {
   priority?: 'high' | 'medium' | 'low';
 }
 
-const UpcomingItem: React.FC<UpcomingItemProps> = ({ title, time, type, priority = 'medium' }) => {
+const UpcomingItemComponent: React.FC<UpcomingItemProps> = ({ title, time, type, priority = 'medium' }) => {
   const typeConfig = {
     course: { icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
     exam: { icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
@@ -138,47 +154,94 @@ const UpcomingItem: React.FC<UpcomingItemProps> = ({ title, time, type, priority
   );
 };
 
+interface ActivityItemProps {
+  activity: DashboardActivity;
+}
+
+const ActivityItem: React.FC<ActivityItemProps> = ({ activity }) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'success': return 'bg-green-50 border-green-200 text-green-800';
+      case 'warning': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+      case 'error': return 'bg-red-50 border-red-200 text-red-800';
+      default: return 'bg-blue-50 border-blue-200 text-blue-800';
+    }
+  };
+
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - time.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 60) {
+      return `Il y a ${diffInMinutes} min`;
+    } else if (diffInMinutes < 1440) {
+      return `Il y a ${Math.floor(diffInMinutes / 60)}h`;
+    } else {
+      return `Il y a ${Math.floor(diffInMinutes / 1440)} jour${Math.floor(diffInMinutes / 1440) > 1 ? 's' : ''}`;
+    }
+  };
+
+  return (
+    <div className={`flex items-center p-4 rounded-lg border ${getStatusColor(activity.status)}`}>
+      <div className="w-2 h-2 bg-current rounded-full mr-3"></div>
+      <div className="flex-1">
+        <p className="font-medium text-current">{activity.title}</p>
+        <p className="text-sm opacity-80">{getTimeAgo(activity.timestamp)}</p>
+      </div>
+    </div>
+  );
+};
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [activities, setActivities] = useState<DashboardActivity[]>([]);
+  const [upcomingItems, setUpcomingItems] = useState<UpcomingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const stats = [
-    {
-      title: 'Cours cette semaine',
-      value: 12,
-      change: '+2',
-      icon: BookOpen,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      trend: 'up' as const
-    },
-    {
-      title: 'Devoirs en attente',
-      value: 5,
-      change: '-3',
-      icon: FileText,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-      trend: 'down' as const
-    },
-    {
-      title: 'Budget restant',
-      value: '2,450 DH',
-      change: '-12%',
-      icon: Wallet,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      trend: 'down' as const
-    },
-    {
-      title: 'Groupes d\'étude',
-      value: 3,
-      change: '+1',
-      icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      trend: 'up' as const
-    }
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch all dashboard data concurrently
+        const [dashboardStats, recentActivities, upcomingData] = await Promise.all([
+          DashboardService.getDashboardStats(),
+          DashboardService.getRecentActivities(5),
+          DashboardService.getUpcomingItems(4)
+        ]);
+
+        setStats(dashboardStats);
+        setActivities(recentActivities);
+        setUpcomingItems(upcomingData);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        setError('Erreur lors du chargement du tableau de bord');
+        
+        // Set mock data as fallback
+        setStats({
+          total_courses: 7,
+          pending_assignments: 5,
+          upcoming_exams: 2,
+          budget_remaining: 2450,
+          study_groups: 3,
+          upcoming_events: 8,
+          monthly_expenses: 1550,
+          grade_average: 85.5,
+          this_week_courses: 12,
+          current_gpa: 3.2,
+          attendance_rate: 92.5,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const quickActions = [
     {
@@ -211,31 +274,6 @@ export const Dashboard: React.FC = () => {
     }
   ];
 
-  const upcomingItems = [
-    {
-      title: 'Cours de Mathématiques',
-      time: 'Aujourd\'hui à 14h00',
-      type: 'course' as const
-    },
-    {
-      title: 'Devoir Algorithmique',
-      time: 'Demain à 23h59',
-      type: 'assignment' as const,
-      priority: 'high' as const
-    },
-    {
-      title: 'Examen Physique',
-      time: 'Vendredi à 08h00',
-      type: 'exam' as const,
-      priority: 'high' as const
-    },
-    {
-      title: 'Session étude IA',
-      time: 'Samedi à 15h00',
-      type: 'event' as const
-    }
-  ];
-
   const currentTime = new Date().toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit'
@@ -265,7 +303,7 @@ export const Dashboard: React.FC = () => {
               {currentDate} • {currentTime}
             </p>
             <p className="text-blue-200 mt-2">
-              Vous avez 3 tâches importantes aujourd'hui
+              {stats ? `Vous avez ${stats.pending_assignments} tâches importantes aujourd'hui` : 'Chargement...'}
             </p>
           </div>
           <div className="hidden md:block">
@@ -276,16 +314,68 @@ export const Dashboard: React.FC = () => {
         </div>
       </motion.div>
 
+      {/* Error Message */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center"
+        >
+          <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
+          <div>
+            <p className="text-red-800 font-medium">Erreur de chargement</p>
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {[
+          {
+            title: 'Cours cette semaine',
+            value: stats?.this_week_courses || 12,
+            change: '+2',
+            icon: BookOpen,
+            color: 'text-blue-600',
+            bgColor: 'bg-blue-50',
+            trend: 'up' as const
+          },
+          {
+            title: 'Devoirs en attente',
+            value: stats?.pending_assignments || 5,
+            change: '-3',
+            icon: FileText,
+            color: 'text-orange-600',
+            bgColor: 'bg-orange-50',
+            trend: 'down' as const
+          },
+          {
+            title: 'Budget restant',
+            value: `${stats?.budget_remaining || 2450} DH`,
+            change: '-12%',
+            icon: Wallet,
+            color: 'text-green-600',
+            bgColor: 'bg-green-50',
+            trend: 'down' as const
+          },
+          {
+            title: 'Groupes d\'étude',
+            value: stats?.study_groups || 3,
+            change: '+1',
+            icon: Users,
+            color: 'text-purple-600',
+            bgColor: 'bg-purple-50',
+            trend: 'up' as const
+          }
+        ].map((stat, index) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <StatCard {...stat} />
+            <StatCard {...stat} loading={loading} />
           </motion.div>
         ))}
       </div>
@@ -331,18 +421,30 @@ export const Dashboard: React.FC = () => {
               <Clock className="w-5 h-5 text-blue-500" />
             </div>
             
-            <div className="space-y-1">
-              {upcomingItems.map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.1 }}
-                >
-                  <UpcomingItem {...item} />
-                </motion.div>
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Chargement...</span>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {upcomingItems.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 + index * 0.1 }}
+                  >
+                    <UpcomingItemComponent
+                      title={item.title}
+                      time={new Date(item.date).toLocaleDateString('fr-FR') + (item.time ? ` à ${item.time}` : '')}
+                      type={item.type}
+                      priority={item.priority}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
 
             <motion.div
               initial={{ opacity: 0 }}
@@ -370,32 +472,71 @@ export const Dashboard: React.FC = () => {
       >
         <h2 className="text-xl font-bold text-gray-900 mb-6">Activité récente</h2>
         
-        <div className="space-y-4">
-          <div className="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-            <div className="flex-1">
-              <p className="font-medium text-green-900">Devoir de Programmation soumis</p>
-              <p className="text-sm text-green-700">Il y a 2 heures</p>
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Chargement des activités...</span>
           </div>
-          
-          <div className="flex items-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-            <div className="flex-1">
-              <p className="font-medium text-blue-900">Nouveau groupe d'étude rejoint</p>
-              <p className="text-sm text-blue-700">Hier à 16:30</p>
-            </div>
+        ) : activities.length > 0 ? (
+          <div className="space-y-4">
+            {activities.map((activity, index) => (
+              <motion.div
+                key={activity.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 + index * 0.1 }}
+              >
+                <ActivityItem activity={activity} />
+              </motion.div>
+            ))}
           </div>
-          
-          <div className="flex items-center p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
-            <div className="flex-1">
-              <p className="font-medium text-purple-900">Profil étudiant mis à jour</p>
-              <p className="text-sm text-purple-700">Il y a 3 jours</p>
-            </div>
+        ) : (
+          <div className="text-center py-8">
+            <Lightbulb className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-600">Aucune activité récente</p>
           </div>
-        </div>
+        )}
       </motion.div>
+
+      {/* Additional Stats */}
+      {stats && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        >
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{stats.current_gpa}</p>
+                <p className="text-indigo-100 text-sm">GPA actuel</p>
+              </div>
+              <Star className="w-8 h-8 text-indigo-200" />
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{stats.attendance_rate}%</p>
+                <p className="text-green-100 text-sm">Assiduité</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-200" />
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{stats.upcoming_events}</p>
+                <p className="text-orange-100 text-sm">Événements à venir</p>
+              </div>
+              <Heart className="w-8 h-8 text-orange-200" />
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };

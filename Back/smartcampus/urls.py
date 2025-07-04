@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/documents/', include('documents.urls')),
     path('api/matching/', include('matching.urls')),
     path('api/collaboration/', include('collaboration.urls')),
+    path('api/dashboard/', include('dashboard.urls')),
 ]
 
 if settings.DEBUG:

@@ -13,7 +13,8 @@ import {
   Calendar as CalendarIcon,
   User,
   Settings,
-  LogOut
+  LogOut,
+  Brain
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
@@ -41,6 +42,13 @@ const navigation = [
     icon: Bot, 
     color: 'text-pink-600',
     badge: 'IA'
+  },
+  { 
+    name: 'Assistant Intelligent', 
+    href: '/intelligent-assistant', 
+    icon: Brain, 
+    color: 'text-cyan-600',
+    badge: 'NEW'
   },
   
   // Life Management Section

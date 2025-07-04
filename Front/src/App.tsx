@@ -16,6 +16,7 @@ import Forum from './pages/Forum';
 import Events from './pages/Events';
 import Profile from './pages/Profile';
 import AIMatching from './pages/AIMatching';
+import IntelligentAssistant from './pages/IntelligentAssistant';
 
 // Simple Settings component
 const Settings = () => (
@@ -124,6 +125,7 @@ function App() {
                         <Route path="/schedule" element={<Schedule />} />
                         <Route path="/study-groups" element={<StudyGroups />} />
                         <Route path="/ai-matching" element={<AIMatching />} />
+                        <Route path="/intelligent-assistant" element={<IntelligentAssistant />} />
                         
                         {/* Life Management */}
                         <Route path="/budget" element={<Budget />} />

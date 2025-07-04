@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'accounts',
     'schedules',
@@ -33,6 +34,7 @@ INSTALLED_APPS = [
     'documents',
     'matching',
     'collaboration',
+    'dashboard',
 ]
 
 MIDDLEWARE = [

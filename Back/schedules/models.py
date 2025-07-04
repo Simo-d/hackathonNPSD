@@ -28,6 +28,7 @@ class Course(models.Model):
     professor = models.CharField(max_length=100)
     level = models.CharField(max_length=2, choices=LEVEL_CHOICES)
     filiere = models.CharField(max_length=10, choices=FILIERE_CHOICES)
+    students = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='courses', blank=True)
     
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -90,6 +91,7 @@ class Assignment(models.Model):
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='PENDING')
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')
     estimated_hours = models.FloatField(default=2.0)
+    is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     

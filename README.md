@@ -44,6 +44,12 @@
 - Analyse de compatibilité personnalisée
 - Interface de communication intégrée
 
+### 🧠 **Assistant Intelligent Personnalisé** ⭐ NOUVEAU
+- Chatbot IA avec GPT-4 via OpenRouter
+- Conseils personnalisés basés sur le contexte étudiant
+- Adapté culturellement au contexte marocain
+- Support 24/7 pour études, budget, motivation
+
 ### 👥 **Espace Collaboratif**
 - Forum questions/réponses entre étudiants
 - Événements étudiants (sessions de révision, afterworks)
